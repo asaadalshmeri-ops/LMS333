@@ -1,0 +1,312 @@
+datasource db {
+  provider = "sqlite"
+  url      = env("DATABASE_URL")
+}
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+
+
+
+
+model User {
+  id           String        @id @default(uuid())
+  email        String        @unique
+  password     String
+  name         String
+  role         String          @default("STUDENT")
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+  
+  // Relations
+  progress     UserProgress[]
+  attempts     QuizAttempt[]
+  studyPlans   StudyPlan[]
+}
+
+model Subject {
+  id           String         @id @default(uuid())
+  nameAr       String         @unique
+  nameEn       String         @unique
+  slug         String         @unique
+  description  String?
+  image        String?
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  units        Unit[]
+  exams        ExamAnalysis[]
+  files        CurriculumFile[]
+}
+
+model Unit {
+  id           String        @id @default(uuid())
+  title        String
+  description  String?
+  order        Int
+  subjectId    String
+  createdAt    DateTime      @default(now())
+  updatedAt    DateTime      @updatedAt
+
+  // Relations
+  subject      Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  lessons      Lesson[]
+}
+
+model Lesson {
+  id                    String        @id @default(uuid())
+  title                 String
+  content               String       
+  simplifiedExplanation String?      
+  importantPoints       String?
+  commonMistakes        String?
+  examTips              String?
+  summary               String?      
+  order                 Int
+  pdfUrl                String?
+  videoUrl              String?
+  isPremium             Boolean       @default(false)
+  unitId                String
+  createdAt             DateTime      @default(now())
+  updatedAt             DateTime      @updatedAt
+
+  // Relations
+  unit         Unit          @relation(fields: [unitId], references: [id], onDelete: Cascade)
+  quizzes      Quiz[]
+  progress     UserProgress[]
+  planDays     StudyPlanDay[]
+  definitions  Definition[]
+  formulas     Formula[]
+  examples     Example[]
+  exercises    Exercise[]
+}
+
+model Definition {
+  id           String   @id @default(uuid())
+  term         String
+  explanation  String  
+  lessonId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Formula {
+  id           String   @id @default(uuid())
+  equation     String
+  description  String  
+  lessonId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Example {
+  id           String   @id @default(uuid())
+  questionText String  
+  solution     String  
+  lessonId     String
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  // Relations
+  lesson       Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model Exercise {
+  id            String   @id @default(uuid())
+  questionText  String  
+  solutionGuide String  
+  lessonId      String
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  // Relations
+  lesson        Lesson   @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+}
+
+model StudyPlan {
+  id           String         @id @default(uuid())
+  userId       String
+  startDate    DateTime       @default(now())
+  durationDays Int            @default(150)
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  days         StudyPlanDay[]
+}
+
+model StudyPlanDay {
+  id               String        @id @default(uuid())
+  studyPlanId      String
+  dayNumber        Int           // 1 to 150
+  dayTitle         String
+  durationMinutes  Int
+  motivationTip    String?      
+  isReviewDay      Boolean       @default(false)
+  isMonthlyReview  Boolean       @default(false)
+  lessonId         String?       // Optional to allow review days
+  isCompleted      Boolean       @default(false)
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  // Relations
+  studyPlan        StudyPlan     @relation(fields: [studyPlanId], references: [id], onDelete: Cascade)
+  lesson           Lesson?       @relation(fields: [lessonId], references: [id], onDelete: SetNull)
+
+  @@unique([studyPlanId, dayNumber])
+}
+
+model Quiz {
+  id           String         @id @default(uuid())
+  title        String
+  timeLimit    Int            // in minutes
+  lessonId     String
+  createdAt    DateTime       @default(now())
+  updatedAt    DateTime       @updatedAt
+
+  // Relations
+  lesson       Lesson         @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+  questions    QuizQuestion[]
+  attempts     QuizAttempt[]
+}
+
+model QuizQuestion {
+  id           String        @id @default(uuid())
+  quizId       String
+  questionText String       
+  options      String
+  correctIndex Int           // index of correct option
+  explanation  String?      
+  order        Int
+
+  // Relations
+  quiz         Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model QuizAttempt {
+  id           String        @id @default(uuid())
+  userId       String
+  quizId       String
+  score        Float
+  completedAt  DateTime      @default(now())
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  quiz         Quiz          @relation(fields: [quizId], references: [id], onDelete: Cascade)
+}
+
+model UserProgress {
+  id           String        @id @default(uuid())
+  userId       String
+  lessonId     String
+  isCompleted  Boolean       @default(false)
+  lastReadAt   DateTime      @default(now())
+
+  // Relations
+  user         User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  lesson       Lesson        @relation(fields: [lessonId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, lessonId])
+}
+
+model ExamAnalysis {
+  id           String        @id @default(uuid())
+  year         Int           // e.g. 2023, 2024
+  subjectId    String
+  questionText String       
+  topicName    String
+  difficulty   String          @default("MEDIUM")
+  correctRate  Float?        // percentage of students answering correctly
+  explanation  String       
+
+  // Relations
+  subject      Subject       @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+}
+
+// =========================================================================
+// NEW TABLES FOR CURRICULUM IMPORT, Crawling, and Versions Control
+// =========================================================================
+
+model CurriculumSource {
+  id             String         @id @default(uuid())
+  name           String
+  url            String         @unique
+  isActive       Boolean        @default(true)
+  lastCrawledAt  DateTime?
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model CurriculumFile {
+  id             String              @id @default(uuid())
+  subjectId      String
+  fileName       String
+  filePath       String
+  fileSize       Int
+  fileHash       String              @unique // SHA-256 hash of file contents to skip duplicates
+  status         String              @default("PENDING") // PENDING, PROCESSED, FAILED
+  createdAt      DateTime            @default(now())
+  updatedAt      DateTime            @updatedAt
+
+  // Relations
+  subject        Subject             @relation(fields: [subjectId], references: [id], onDelete: Cascade)
+  versions       CurriculumVersion[]
+}
+
+model CurriculumVersion {
+  id                String              @id @default(uuid())
+  curriculumFileId  String
+  editionYear       Int                 // Edition of book (e.g. 2025, 2026)
+  versionNumber     Int                 @default(1)
+  isActive          Boolean             @default(false) // Must be approved by Admin to set Active
+  isPendingApproval Boolean             @default(true)
+  changeSummary     String?            
+  createdAt         DateTime            @default(now())
+  updatedAt         DateTime            @updatedAt
+
+  // Relations
+  curriculumFile    CurriculumFile      @relation(fields: [curriculumFileId], references: [id], onDelete: Cascade)
+  notifications     UpdateNotification[]
+}
+
+model ImportJob {
+  id             String         @id @default(uuid())
+  jobType        String         // MANUAL_UPLOAD, AUTO_CRAWL
+  status         String         @default("RUNNING") // RUNNING, COMPLETED, FAILED
+  progress       Float          @default(0.0) // 0.0 to 100.0
+  logs           String         @default("")
+  createdAt      DateTime       @default(now())
+  updatedAt      DateTime       @updatedAt
+}
+
+model CrawlerJob {
+  id             String         @id @default(uuid())
+  status         String         @default("RUNNING") // RUNNING, COMPLETED, FAILED
+  resultSummary  String?       
+  logs           String         @default("")
+  createdAt      DateTime       @default(now())
+  completedAt    DateTime?
+}
+
+model UpdateNotification {
+  id                   String            @id @default(uuid())
+  title                String
+  message              String           
+  isRead               Boolean           @default(false)
+  curriculumVersionId  String
+  status               String            @default("PENDING_APPROVAL") // PENDING_APPROVAL, APPROVED, REJECTED
+  createdAt            DateTime          @default(now())
+
+  // Relations
+  version              CurriculumVersion @relation(fields: [curriculumVersionId], references: [id], onDelete: Cascade)
+}
